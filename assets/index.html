@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>DZE 极速下载器</title>
+<style>
+  :root { --deep:#0b1220; --bg:#eef2f7; --card:#fff; --blue:#0a84e8; --green:#22c55e;
+          --orange:#f59e0b; --red:#ef4444; --slate:#64748b; --text:#1e293b; }
+  * { box-sizing:border-box; margin:0; -webkit-tap-highlight-color:transparent; }
+  body { font-family:system-ui,"Noto Sans CJK SC",sans-serif; background:var(--bg); color:var(--text);
+         padding-bottom:24px; }
+  header { background:var(--deep); color:#fff; padding:12px 16px; display:flex;
+           align-items:center; gap:12px; }
+  header img { width:42px; height:42px; border-radius:10px; }
+  header h1 { font-size:17px; }
+  header p { font-size:11px; color:#9fb3c8; }
+  #aria { margin-left:auto; font-size:11px; font-weight:700; color:#fff;
+          background:var(--slate); border-radius:99px; padding:4px 10px; }
+  main { padding:12px; }
+  input#url { width:100%; padding:14px; font-size:16px; border:1px solid #cbd5e1;
+              border-radius:10px; background:#fff; }
+  .btns { display:flex; gap:8px; margin-top:10px; }
+  button { flex:1; border:0; border-radius:10px; padding:14px 0; font-size:16px;
+           font-weight:700; cursor:pointer; }
+  .paste { background:#e2e8f0; color:var(--text); flex:0 0 88px; }
+  .go { background:var(--blue); color:#fff; }
+  .stop { background:#fee2e2; color:var(--red); flex:0 0 88px; }
+  .dirrow { display:flex; align-items:center; gap:8px; margin-top:10px; font-size:12px;
+            color:var(--slate); flex-wrap:wrap; }
+  .dirrow span { flex:1; min-width:120px; word-break:break-all; }
+  .mini { background:#e2e8f0; color:var(--text); flex:0 0 auto; padding:8px 14px;
+          font-size:13px; font-weight:600; }
+  .card { background:var(--card); border:1px solid #e2e8f0; border-radius:14px;
+          padding:14px; margin-top:12px; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:12px;
+           font-weight:700; color:#fff; background:var(--slate); vertical-align:middle; }
+  .bar { height:14px; background:#e2e8f0; border-radius:99px; overflow:hidden; margin:10px 0; }
+  .bar i { display:block; height:100%; width:0; background:var(--blue);
+           border-radius:99px; transition:width .4s; }
+  .pct { color:var(--blue); font-size:26px; font-weight:800; float:right; line-height:1; }
+  .meta { color:var(--slate); font-size:13px; line-height:1.9; clear:both; }
+  .meta b { color:var(--blue); }
+  h2 { font-size:14px; color:var(--slate); margin:14px 2px 6px; }
+  .task { background:var(--card); border:1px solid #e2e8f0; border-radius:12px;
+          padding:10px 12px; margin-top:6px; font-size:14px; }
+  .task .st { float:right; font-weight:700; }
+  .task .sz { color:var(--slate); font-size:12px; }
+  #log { background:#0b1220; color:#cbd5e1; font:11px/1.6 Consolas,monospace;
+         border-radius:10px; padding:10px; height:140px; overflow-y:auto;
+         white-space:pre-wrap; }
+  .ok{color:#4ade80} .warn{color:#fbbf24} .error{color:#f87171} .info{color:#7dd3fc} .dim{color:#64748b}
+  #dir { color:var(--slate); font-size:11px; margin-top:10px; word-break:break-all; }
+</style>
+</head>
+<body>
+<header>
+  <img src="icon.png" alt="">
+  <div><h1>DZE 极速下载器</h1><p>IDM 式分档测速 · aria2c 全速下载 · Android</p></div>
+  <span id="aria">检测中…</span>
+</header>
+<main>
+  <input id="url" type="text" placeholder="粘贴 http(s):// 下载链接">
+  <div class="btns">
+    <button class="paste" onclick="pasteClip()">📋 粘贴</button>
+    <button class="go" onclick="start()">立即下载</button>
+    <button class="stop" onclick="stop()">停止</button>
+  </div>
+  <div class="dirrow">
+    <b>保存到：</b><span id="dirtext">…</span>
+    <button class="mini" onclick="DZE.pickDir()">📁 更改</button>
+    <button class="mini" onclick="DZE.resetDir()">默认</button>
+  </div>
+  <div class="card">
+    <span class="pct" id="pct"></span>
+    <b id="name">暂无任务</b><br>
+    <span id="state" class="badge">就绪</span>
+    <div class="bar"><i id="fill"></i></div>
+    <div class="meta">
+      <div>大小：<span id="size">—</span>　速度：<b id="speed">—</b>　剩余：<span id="eta">—</span></div>
+      <div id="note"></div>
+    </div>
+  </div>
+  <h2>任务列表</h2>
+  <div id="rows"></div>
+  <h2>事件日志</h2>
+  <div id="log"></div>
+  <div id="dir"></div>
+</main>
+<script>
+const st2c = {"下载":"var(--blue)","完成":"var(--green)","失败":"var(--red)",
+              "测速":"var(--orange)","解析":"var(--orange)","排队":"var(--slate)","已取消":"#94a3b8"};
+function refresh() {
+  let s;
+  try { s = JSON.parse(DZE.status()); } catch (e) { return; }
+  const aria = document.getElementById("aria");
+  aria.textContent = s.has_aria2 ? "● aria2c ✓" : "● 无 aria2c";
+  aria.style.background = s.has_aria2 ? "var(--green)" : "var(--orange)";
+  document.getElementById("dir").textContent = "保存目录：" + s.save_dir;
+  document.getElementById("dirtext").textContent = s.save_dir;
+  const t = s.tasks && s.tasks[0];
+  if (t) {
+    document.getElementById("name").textContent = t.name;
+    const st = document.getElementById("state");
+    st.textContent = t.state;
+    st.style.background = st2c[t.state] || "var(--slate)";
+    const pct = t.state === "完成" ? 100 : t.pct;
+    document.getElementById("fill").style.width = pct + "%";
+    document.getElementById("pct").textContent = pct.toFixed(1) + "%";
+    document.getElementById("size").textContent = t.size;
+    document.getElementById("speed").textContent = t.speed;
+    document.getElementById("eta").textContent = t.eta;
+    document.getElementById("note").textContent = t.note || "";
+  }
+  document.getElementById("rows").innerHTML = (s.tasks || []).map(t =>
+    `<div class="task"><span class="st" style="color:${st2c[t.state]||'inherit'}">${t.state}</span>` +
+    `#${t.id} ${t.name}<br><span class="sz">${t.size}</span></div>`).join("");
+  const log = document.getElementById("log");
+  log.innerHTML = (s.logs || []).map(l => `<div class="${l.tag}">[${l.t}] ${l.text}</div>`).join("");
+  log.scrollTop = log.scrollHeight;
+}
+function start() {
+  const url = document.getElementById("url").value.trim();
+  const r = DZE.start(url);
+  if (r !== "ok") alert(r);
+}
+function pasteClip() {
+  const text = DZE.paste();
+  if (text) document.getElementById("url").value = text.trim();
+  else alert("剪贴板为空");
+}
+function stop() { DZE.stop(); }
+setInterval(refresh, 1000);
+refresh();
+</script>
+</body>
+</html>
