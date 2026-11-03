@@ -46,6 +46,8 @@ onMounted(() => {
       <nav class="topnav" v-if="route.name === 'public'">
         <router-link to="/" class="nav-link" active-class="on">公开广场</router-link>
         <router-link to="/files" class="nav-link">我的文件</router-link>
+        <router-link to="/shares" class="nav-link">我的分享</router-link>
+        <router-link to="/offline" class="nav-link">离线下载</router-link>
       </nav>
 
       <div class="top-right">

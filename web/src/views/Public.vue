@@ -1,78 +1,147 @@
 <script setup>
-// 公开广场：未登录可直接浏览下载（M3 接入公开区 API）
+// 公开广场：免登录浏览/搜索/下载；登录后可上传公开资源（须简介+分类）
 import { ref, onMounted } from 'vue'
-import { api } from '../api'
+import { api, getToken } from '../api'
 
+const logged = ref(!!getToken())
 const files = ref([])
-const cats = ref([])
-const loading = ref(true)
+const categories = ref([])
 const keyword = ref('')
-const catId = ref('')
+const cat = ref('')
+const sort = ref('new')
+const loading = ref(false)
+const showUpload = ref(false)
+const up = ref({ name: '', desc: '', category_id: null })
+const uploading = ref(false)
 
-onMounted(async () => {
+function fmt(n) {
+  if (n >= 1<<30) return (n/(1<<30)).toFixed(2)+' GB'
+  if (n >= 1<<20) return (n/(1<<20)).toFixed(1)+' MB'
+  if (n >= 1024) return (n/1024).toFixed(1)+' KB'
+  return n+' B'
+}
+
+async function load() {
+  loading.value = true
   try {
-    const d = await api.get('/public/files')
-    files.value = d.files || []
-    cats.value = d.categories || []
-  } catch { /* M3 未接入时静默 */ }
-  loading.value = false
-})
+    const qs = new URLSearchParams()
+    if (keyword.value) qs.set('keyword', keyword.value)
+    if (cat.value) qs.set('category_id', cat.value)
+    if (sort.value) qs.set('sort', sort.value)
+    const r = await api.get(`/public/files?${qs}`)
+    files.value = r.files
+    categories.value = r.categories
+  } catch (e) { alert(e.message) } finally { loading.value = false }
+}
+
+function download(f) {
+  const a = document.createElement('a')
+  a.href = `/api/public/files/${f.id}/download`
+  document.body.appendChild(a); a.click(); a.remove()
+}
+
+async function uploadPub(e) {
+  const file = e.target.files[0]; e.target.value = ''
+  if (!file) return
+  if (!up.value.desc.trim()) { alert('公开上传必须填写简介'); return }
+  if (!up.value.category_id) { alert('公开上传必须选择分类'); return }
+  uploading.value = true
+  try {
+    const buf = new Uint8Array(await file.arrayBuffer())
+    const hash = await crypto.subtle.digest('SHA-256', buf).then(h => [...new Uint8Array(h)].map(b=>b.toString(16).padStart(2,'0')).join(''))
+    const init = await api.post('/upload/init', { name: file.name, size: buf.length, sha256: hash, is_public: true, category_id: up.value.category_id, desc_text: up.value.desc.trim() })
+    if (!init.instant) {
+      const form = new FormData()
+      form.append('file', new Blob([buf]))
+      await fetch(`/api/upload/${init.upload_id}/chunk/0`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}` }, body: form })
+      await api.post(`/upload/${init.upload_id}/complete`, { sha256: hash })
+    }
+    up.value = { name: '', desc: '', category_id: null }
+    showUpload.value = false
+    await load()
+  } catch (err) { alert(err.message) } finally { uploading.value = false }
+}
+
+onMounted(load)
 </script>
 
 <template>
-  <div class="public-page">
-    <div class="hero card">
-      <h1>公开资源广场</h1>
-      <p>来自社区用户上传的公开资源，无需登录即可浏览与下载</p>
-      <div class="search-row">
-        <input v-model="keyword" placeholder="搜索公开资源…" />
-        <select v-model="catId">
+  <div>
+    <div class="page-head">
+      <h2>公开广场</h2>
+      <div class="toolbar">
+        <input v-model="keyword" class="ipt" placeholder="搜索名称或简介…" @keyup.enter="load" />
+        <select v-model="cat" class="ipt sel" @change="load">
           <option value="">全部分类</option>
-          <option v-for="c in cats" :key="c.id" :value="c.id">{{ c.name }}</option>
+          <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
         </select>
-        <button class="btn btn-primary">搜索</button>
+        <select v-model="sort" class="ipt sel" @change="load">
+          <option value="new">最新上传</option>
+          <option value="hot">下载最多</option>
+        </select>
+        <button class="btn" @click="load">搜索</button>
+        <button v-if="logged && !showUpload" class="btn btn-primary" @click="showUpload = true">上传公开资源</button>
       </div>
     </div>
 
-    <div class="cat-chips">
-      <span class="chip on">全部</span>
-      <span class="chip" v-for="c in cats" :key="c.id">{{ c.name }}</span>
+    <div v-if="showUpload" class="card pub-upload">
+      <h3>上传公开资源 <small>需填写简介与分类</small></h3>
+      <input v-model="up.desc" class="ipt" placeholder="简介：这个文件是什么、适合谁用…" />
+      <div class="row">
+        <select v-model="up.category_id" class="ipt sel">
+          <option :value="null" disabled>选择分类</option>
+          <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
+        <label class="btn btn-primary">
+          {{ uploading ? '上传中…' : '选择文件上传' }}
+          <input type="file" hidden @change="uploadPub" />
+        </label>
+      </div>
     </div>
 
-    <div class="grid">
-      <div v-for="f in files" :key="f.id" class="file-card card">
-        <div class="fc-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 2v6h6"/></svg>
+    <div class="pub-grid">
+      <div v-for="f in files" :key="f.id" class="card pub-item">
+        <div class="pub-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 2v6h6"/>
+          </svg>
         </div>
-        <div class="fc-name" :title="f.name">{{ f.name }}</div>
-        <div class="fc-desc">{{ f.desc_text || '暂无简介' }}</div>
-        <div class="fc-meta">{{ f.size }} · {{ f.download_count }} 次下载</div>
+        <div class="pub-body">
+          <div class="pub-name" :title="f.name">{{ f.name }}</div>
+          <div class="pub-desc">{{ f.desc_text || '（无简介）' }}</div>
+          <div class="pub-meta">
+            <span>{{ fmt(f.size) }}</span><span>·</span><span>{{ f.owner }}</span>
+            <span>·</span><span>{{ f.download_count }} 下载</span>
+            <span class="cat" v-if="f.category_id">{{ (categories.find(c=>c.id===f.category_id)||{}).name }}</span>
+          </div>
+        </div>
+        <button class="btn btn-primary sm" @click="download(f)">下载</button>
       </div>
     </div>
     <div v-if="!files.length && !loading" class="empty">
-      <div class="icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M18 10h-1.3A7 7 0 1 0 9 3a7 7 0 0 0-6.2 7H2a1 1 0 0 0 0 2h16a1 1 0 0 0 0-2z" transform="translate(4 2)"/></svg>
-      </div>
-      <p>公开资源区正在建设中，敬请期待</p>
+      <p>暂无公开资源 — 点击「上传公开资源」分享你的文件</p>
     </div>
   </div>
 </template>
 
 <style scoped>
-.hero { padding: 32px; text-align: center; margin-bottom: 20px; }
-.hero h1 { font-size: 24px; margin-bottom: 6px; }
-.hero p { color: var(--text-2); margin-bottom: 20px; }
-.search-row { display: flex; gap: 10px; max-width: 520px; margin: 0 auto; }
-.search-row input { flex: 1; }
-.cat-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
-.chip { padding: 6px 14px; border-radius: 999px; background: var(--bg-card); border: 1px solid var(--border); cursor: pointer; font-size: 13px; color: var(--text-2); }
-.chip.on { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
-.file-card { padding: 16px; cursor: pointer; transition: transform .12s, box-shadow .12s; }
-.file-card:hover { transform: translateY(-2px); }
-.fc-icon { font-size: 30px; margin-bottom: 8px; }
-.fc-icon svg { width: 30px; height: 30px; color: var(--accent); }
-.fc-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fc-desc { color: var(--text-2); font-size: 12px; margin: 4px 0; height: 32px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.fc-meta { color: var(--text-3); font-size: 12px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; gap: 12px; flex-wrap: wrap; }
+.page-head h2 { font-size: 18px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; }
+.ipt { padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); color: var(--text); font-size: 13.5px; min-width: 120px; }
+.ipt:focus { outline: none; border-color: var(--accent); }
+.sel { min-width: 110px; }
+.pub-upload { padding: 16px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px; }
+.pub-upload h3 { font-size: 15px; } .pub-upload h3 small { color: var(--text-3); font-weight: 400; }
+.pub-upload .row { display: flex; gap: 10px; }
+.pub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.pub-item { padding: 14px; display: flex; align-items: center; gap: 12px; }
+.pub-icon { width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.pub-icon svg { width: 22px; height: 22px; }
+.pub-body { flex: 1; min-width: 0; }
+.pub-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pub-desc { font-size: 12.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin: 3px 0; }
+.pub-meta { font-size: 11.5px; color: var(--text-3); display: flex; gap: 5px; align-items: center; flex-wrap: wrap; }
+.cat { background: var(--bg-hover); padding: 1px 8px; border-radius: 99px; }
+.btn.sm { padding: 6px 12px; font-size: 12.5px; flex-shrink: 0; }
 </style>

@@ -7,8 +7,10 @@ const routes = [
   { path: '/register', name: 'register', component: () => import('./views/Register.vue') },
   { path: '/files', name: 'files', component: () => import('./views/Files.vue'), meta: { auth: true } },
   { path: '/shares', name: 'shares', component: () => import('./views/Shares.vue'), meta: { auth: true } },
+  { path: '/offline', name: 'offline', component: () => import('./views/Offline.vue'), meta: { auth: true } },
   { path: '/recycle', name: 'recycle', component: () => import('./views/Recycle.vue'), meta: { auth: true } },
   { path: '/settings', name: 'settings', component: () => import('./views/Settings.vue'), meta: { auth: true } },
+  { path: '/s/:token', name: 'share', component: () => import('./views/ShareView.vue') },
 ]
 
 const router = createRouter({
