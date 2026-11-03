@@ -1,0 +1,9 @@
+# Darling Cloud v2 后端依赖
+fastapi>=0.115
+uvicorn[standard]>=0.30
+pydantic>=2.7
+python-multipart>=0.0.9
+aiofiles>=23.2
+PyJWT>=2.8
+argon2-cffi>=23.1
+Pillow>=10.0
