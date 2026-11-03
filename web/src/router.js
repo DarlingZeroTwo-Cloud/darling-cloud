@@ -11,6 +11,7 @@ const routes = [
   { path: '/recycle', name: 'recycle', component: () => import('./views/Recycle.vue'), meta: { auth: true } },
   { path: '/settings', name: 'settings', component: () => import('./views/Settings.vue'), meta: { auth: true } },
   { path: '/s/:token', name: 'share', component: () => import('./views/ShareView.vue') },
+  { path: '/help', name: 'help', component: () => import('./views/Help.vue') },
 ]
 
 const router = createRouter({

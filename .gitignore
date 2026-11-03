@@ -1,27 +1,7 @@
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
 dist/
 build/
-*.db
-*.sqlite3
-
-# 运行时
-data/
-logs/
-*.log
-
-# 系统
-.DS_Store
-Thumbs.db
-
-# 密钥
-.env
-*.key
-
-# 前端
 node_modules/
-web/dist/
+*.pyc
+__pycache__/
+server/data/
+server/requirements.installed

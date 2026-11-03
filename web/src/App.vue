@@ -58,6 +58,7 @@ onMounted(() => {
             <span v-if="user.is_admin" class="admin-badge">管理员</span>
           </span>
           <div v-if="showUserMenu" class="user-menu card">
+            <div class="um-item" @click="router.push('/help'); showUserMenu=false">帮助与部署</div>
             <div class="um-item" @click="router.push('/settings'); showUserMenu=false">设置</div>
             <div class="um-item" @click="router.push('/settings'); showUserMenu=false">清缓存</div>
             <div class="um-item danger" @click="logout">退出登录</div>
@@ -66,6 +67,7 @@ onMounted(() => {
         <template v-else>
           <button class="btn btn-ghost" @click="router.push('/login')">登录</button>
           <button class="btn btn-primary" @click="router.push('/register')">注册</button>
+          <button class="btn btn-ghost" @click="router.push('/help')">帮助</button>
         </template>
       </div>
     </header>

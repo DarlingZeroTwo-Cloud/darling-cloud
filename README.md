@@ -35,15 +35,38 @@ npm run build      # 构建到 web/dist（后端自动挂载）
 bash scripts/smoke.sh 18081
 ```
 
+## 快速开始
+
+### Linux / Arch（一条命令）
+
+```bash
+# 方式 A：压缩包（含单二进制）
+tar -xzf darling-cloud-v0.1.0-linux-x86_64.tar.gz
+cd darling-cloud-v0.1.0-linux-x86_64
+./start.sh                # 默认端口 8080，自动打开 http://127.0.0.1:8080
+
+# 方式 B：直接运行单二进制
+./darling-cloud start --port 8080 --data ./data
+```
+
+### Windows（CMD 一键启动）
+
+```bat
+start.bat                 // 双击或命令行执行，自动装依赖并打开浏览器
+start.bat 9000            // 指定端口
+```
+
+> 首个注册账号自动成为管理员；部署/挂载/离线下载详见 [docs/DEPLOY.md](docs/DEPLOY.md) 与软件内置帮助页 `/help`。
+
 ## 里程碑
 
 | 阶段 | 内容 | 状态 |
 |------|------|------|
 | M1 | 用户系统（注册/登录/验证码/三组/首号管理员/管理端） | ✅ 完成 |
-| M2 | 核心文件（上传/秒传/断点/下载/打包/预览/回收站） | 进行中 |
-| M3 | 公开区 + 分享 + 离线下载 | 待开始 |
-| M4 | 管理 + WebDAV + 多存储 | 待开始 |
-| M5 | 打包发布（Windows CMD / Linux 单二进制） | 待开始 |
+| M2 | 核心文件（上传/秒传/断点/下载/打包/预览/回收站） | ✅ 完成 |
+| M3 | 公开区 + 分享 + 离线下载 | ✅ 完成 |
+| M4 | 管理 + WebDAV + 多存储 | ✅ 完成 |
+| M5 | 打包发布（Windows CMD / Linux 单二进制） | ✅ 完成 |
 
 ## 目录结构
 

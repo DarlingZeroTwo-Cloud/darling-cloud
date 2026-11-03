@@ -1,5 +1,6 @@
 """Darling Cloud v2 —— FastAPI 入口"""
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
@@ -43,7 +44,11 @@ async def ping():
 
 
 # 静态前端（web/dist 构建后挂载；SPA history 路由 fallback 到 index.html）
-_web_dist = BASE_DIR.parent / "web" / "dist"
+import sys
+if getattr(sys, "frozen", False):
+    _web_dist = Path(sys._MEIPASS) / "web_dist"
+else:
+    _web_dist = BASE_DIR.parent / "web" / "dist"
 if _web_dist.exists():
     import os
     from starlette.responses import FileResponse
