@@ -6,7 +6,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # 数据目录（默认项目根 data/，可用环境变量覆盖）
 DATA_DIR = Path(os.environ.get("DARLING_DATA", BASE_DIR / "data"))
-FILES_DIR = DATA_DIR / "files"      # 按 SHA-256 去重存储
+FILES_DIR = DATA_DIR / "files"      # 按 SHA-256 去重存储（本地后端）
+REMOTE_DIR = Path(os.environ.get("DARLING_REMOTE", ""))  # 远程挂载扩容目录（另一台机器挂载，如 NFS/SFTP）
 DB_PATH = DATA_DIR / "darling.db"   # SQLite
 TMP_DIR = DATA_DIR / "tmp"          # 分片上传临时区
 
@@ -28,6 +29,19 @@ AGNES_BASE = os.environ.get("AGNES_BASE", "https://apihub.agnes-ai.com/v1")
 AGNES_KEY = os.environ.get("AGNES_KEY", "")
 
 
+def get_setting(key: str, default: str = "") -> str:
+    """读全站设置（惰性导入避免循环依赖）"""
+    from core.db import db
+    try:
+        with db() as conn:
+            row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+            return row["value"] if row else default
+    except Exception:
+        return default
+
+
 def ensure_dirs() -> None:
     for d in (FILES_DIR, TMP_DIR):
         d.mkdir(parents=True, exist_ok=True)
+    if REMOTE_DIR:
+        REMOTE_DIR.mkdir(parents=True, exist_ok=True)

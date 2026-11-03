@@ -57,6 +57,32 @@ async def patch_user(uid: int, body: UserPatchIn, _: dict = Depends(require_admi
         return {"ok": True}
 
 
+# ---------- 用户资源管理（管理员可看/清理任意用户文件） ----------
+@router.get("/users/{uid}/files")
+async def user_files(uid: int, _: dict = Depends(require_admin)):
+    """列出某用户的全部文件（违规清理入口）"""
+    with db() as conn:
+        if not conn.execute("SELECT 1 FROM users WHERE id=?", (uid,)).fetchone():
+            raise HTTPException(404, "用户不存在")
+        rows = conn.execute(
+            "SELECT f.id, f.name, f.is_dir, f.size, f.is_public, f.category_id, f.desc_text, f.created_at "
+            "FROM files f WHERE f.owner_id=? AND f.deleted_at IS NULL ORDER BY f.is_dir DESC, f.id DESC",
+            (uid,)).fetchall()
+        return [dict(r) for r in rows]
+
+
+@router.delete("/users/{uid}/files/{fid}")
+async def user_file_delete(uid: int, fid: int, _: dict = Depends(require_admin)):
+    """管理员强制删除任意用户文件（软删入回收站，可恢复）"""
+    with db() as conn:
+        row = conn.execute("SELECT id FROM files WHERE id=? AND owner_id=? AND deleted_at IS NULL",
+                           (fid, uid)).fetchone()
+        if not row:
+            raise HTTPException(404, "文件不存在")
+        conn.execute("UPDATE files SET deleted_at=datetime('now') WHERE id=?", (fid,))
+        return {"ok": True}
+
+
 # ---------- 用户组 / 配额 ----------
 class GroupIn(BaseModel):
     can_upload: bool | None = None

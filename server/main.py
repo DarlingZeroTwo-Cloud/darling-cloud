@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from core.config import BASE_DIR, HOST, PORT, ensure_dirs
 from core.db import init_db
-from api import auth, users, files, admin, upload, download, public, share, offline
+from api import auth, users, files, admin, upload, download, public, share, offline, dav
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.include_router(download.router)
 app.include_router(public.router)
 app.include_router(share.router)
 app.include_router(offline.router)
+app.include_router(dav.router)
 
 
 @app.get("/api/ping")
