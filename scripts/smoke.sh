@@ -4,7 +4,8 @@
 set -e
 PORT="${1:-18081}"
 BASE="http://127.0.0.1:$PORT"
-DB="server/data/darling.db"
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+DB="$ROOT/server/data/darling.db"
 PASS=0; FAIL=0
 
 ok()   { echo "  ✅ $1"; PASS=$((PASS+1)); }
