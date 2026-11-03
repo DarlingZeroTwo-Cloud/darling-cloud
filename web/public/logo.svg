@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="cloudGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8ab6ff"/>
+      <stop offset="1" stop-color="#5b8cff"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- 云朵主体 -->
+  <path fill="url(#cloudGrad)" d="M18 46a10 10 0 0 1-2.2-19.8 14 14 0 0 1 27-2.5A11.5 11.5 0 0 1 44 46H18z"/>
+  <!-- 顶部高光 -->
+  <path fill="url(#shine)" d="M22 27a8 8 0 0 1 7.5-5.5c2.6 0 4.9 1.3 6.3 3.3a9 9 0 0 0-11.7 5.6 6 6 0 0 0-2.1-.2A7.2 7.2 0 0 1 22 27z"/>
+  <!-- 底部小云层 -->
+  <ellipse cx="44" cy="45" rx="6" ry="3.2" fill="#4a7aff" opacity="0.5"/>
+</svg>
