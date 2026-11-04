@@ -45,18 +45,18 @@ jobs:
             cli.py
 
       - name: 组装发布目录
-        shell: bash
+        shell: pwsh
         run: |
-          mkdir -p release/win64
-          cp server/dist/darling-cloud.exe release/win64/
-          cp start.bat release/win64/
-          cp docs/DEPLOY.md release/win64/
-          cp README.md release/win64/
-          cp LICENSE release/win64/ 2>/dev/null || true
-          cd release && zip -r ../darling-cloud-v0.1.0-win64.zip win64
+          New-Item -ItemType Directory -Force -Path release/win64 | Out-Null
+          Copy-Item server/dist/darling-cloud.exe release/win64/
+          Copy-Item start.bat release/win64/
+          Copy-Item docs/DEPLOY.md release/win64/
+          Copy-Item README.md release/win64/
+          if (Test-Path LICENSE) { Copy-Item LICENSE release/win64/ }
+          Compress-Archive -Path release/win64/* -DestinationPath darling-cloud-v0.1.0-win64.zip -Force
+          ls darling-cloud-v0.1.0-win64.zip
 
       - name: 上传到 Release
         uses: softprops/action-gh-release@v2
         with:
           files: darling-cloud-v0.1.0-win64.zip
-          tag_name: v0.1.0
