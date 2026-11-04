@@ -70,6 +70,16 @@ def build_release():
     if (ROOT / "LICENSE").exists():
         shutil.copy(ROOT / "LICENSE", pkg / "LICENSE")
 
+    # 打包 aria2c（离线下载运行时）
+    import shutil as _sh
+    aria2 = _sh.which("aria2c")
+    if aria2:
+        shutil.copy(aria2, pkg / "aria2c")
+        os.chmod(pkg / "aria2c", 0o755)
+        print(f"  -> 已打包 aria2c: {aria2}")
+    else:
+        print("  !! 系统未找到 aria2c，离线下载功能将不可用")
+
     tarball = ROOT / "dist" / f"darling-cloud-v{VERSION}-linux-x86_64.tar.gz"
     if tarball.exists():
         tarball.unlink()

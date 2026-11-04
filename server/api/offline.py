@@ -9,15 +9,14 @@ from urllib import request
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from core.config import FILES_DIR
+from core.config import FILES_DIR, ARIA2_RPC_PORT, ARIA2_RPC_SECRET, find_aria2c
 from core.db import db
 from core.deps import get_current_user
 from core.security import sanitize_name
 
 router = APIRouter(prefix="/api/offline", tags=["offline"])
 
-ARIA2_RPC = "http://127.0.0.1:6800/jsonrpc"
-ARIA2_SECRET = ""
+ARIA2_RPC = f"http://127.0.0.1:{ARIA2_RPC_PORT}/jsonrpc"
 
 
 class TaskIn(BaseModel):
@@ -26,14 +25,26 @@ class TaskIn(BaseModel):
 
 
 def _aria2_available() -> bool:
-    return bool(shutil.which("aria2c"))
+    """aria2c 可用：包内或 PATH 有 aria2c 二进制，且 RPC 端口在监听"""
+    if not find_aria2c():
+        return False
+    import socket
+    try:
+        s = socket.create_connection(("127.0.0.1", ARIA2_RPC_PORT), timeout=1)
+        s.close()
+        return True
+    except Exception:
+        return False
 
 
 def _rpc(method: str, params: list) -> dict | None:
     """调用 aria2 JSON-RPC；失败返回 None"""
     if not _aria2_available():
         return None
-    body = json.dumps({"jsonrpc": "2.0", "id": "dc", "method": method, "params": params}).encode()
+    p = list(params)
+    if ARIA2_RPC_SECRET:
+        p.insert(0, f"token:{ARIA2_RPC_SECRET}")
+    body = json.dumps({"jsonrpc": "2.0", "id": "dc", "method": method, "params": p}).encode()
     req = request.Request(ARIA2_RPC, data=body, headers={"Content-Type": "application/json"})
     try:
         with request.urlopen(req, timeout=5) as r:
@@ -56,7 +67,7 @@ async def add_task(body: TaskIn, user: dict = Depends(get_current_user)):
         raise HTTPException(403, "当前用户组不可上传")
 
     if not _aria2_available():
-        raise HTTPException(503, "服务器未安装 aria2c，请先安装：apt install aria2 或 pacman -S aria2")
+        raise HTTPException(503, "aria2c 未运行或未打包进发布目录，请检查部署文档")
 
     # 下载目录 = 临时待转存区（完成后转存到用户空间）
     out_dir = FILES_DIR.parent / "offline" / f"u{user['id']}"

@@ -53,6 +53,17 @@ jobs:
           Copy-Item docs/DEPLOY.md release/win64/
           Copy-Item README.md release/win64/
           if (Test-Path LICENSE) { Copy-Item LICENSE release/win64/ }
+
+      - name: 下载 aria2c.exe
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/aria2/aria2/releases/download/release-1.37.0/aria2-1.37.0-win-64bit-build1.zip" -OutFile aria2.zip
+          Expand-Archive -Path aria2.zip -DestinationPath aria2x -Force
+          Copy-Item aria2x/aria2-1.37.0-win-64bit-build1/aria2c.exe release/win64/
+
+      - name: 打 zip
+        shell: pwsh
+        run: |
           Compress-Archive -Path release/win64/* -DestinationPath darling-cloud-v0.1.0-win64.zip -Force
           ls darling-cloud-v0.1.0-win64.zip
 
