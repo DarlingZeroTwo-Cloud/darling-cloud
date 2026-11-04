@@ -1,0 +1,62 @@
+name: Build Windows EXE
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: 安装后端依赖（华为云镜像）
+        run: |
+          python -m pip install --upgrade pip -i https://mirrors.huaweicloud.com/repository/pypi/simple
+          pip install -r server/requirements.txt pyinstaller -i https://mirrors.huaweicloud.com/repository/pypi/simple
+
+      - name: 构建前端
+        working-directory: web
+        run: |
+          npm install --registry=https://mirrors.huaweicloud.com/repository/npm/
+          npm run build
+
+      - name: PyInstaller 打 EXE
+        working-directory: server
+        run: |
+          pyinstaller --noconfirm --clean --onefile --name darling-cloud `
+            --add-data "../web/dist;web_dist" `
+            --paths . `
+            cli.py
+
+      - name: 组装发布目录
+        shell: bash
+        run: |
+          mkdir -p release/win64
+          cp server/dist/darling-cloud.exe release/win64/
+          cp start.bat release/win64/
+          cp docs/DEPLOY.md release/win64/
+          cp README.md release/win64/
+          cp LICENSE release/win64/ 2>/dev/null || true
+          cd release && zip -r ../darling-cloud-v0.1.0-win64.zip win64
+
+      - name: 上传到 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: darling-cloud-v0.1.0-win64.zip
+          tag_name: v0.1.0
